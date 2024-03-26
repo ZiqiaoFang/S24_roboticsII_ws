@@ -80,6 +80,14 @@ class TrackingNode(Node):
         # Create a subscriber to the detected object pose
         self.sub_detected_obj_pose = self.create_subscription(PoseStamped, '/detected_color_object_pose', self.detected_obj_pose_callback, 10)
     
+        # PID controller parameters
+        self.kp = 0.5  # Proportional gain
+        self.ki = 0.01  # Integral gain
+        self.kd = 0.1  # Derivative gain
+        self.prev_error = 0.0
+        self.integral = 0.0
+        self.desired_distance = 40.0  # Desired distance to maintain from the object
+
         # Create timer, running at 100Hz
         self.timer = self.create_timer(0.01, self.timer_update)
     
@@ -155,10 +163,23 @@ class TrackingNode(Node):
         # feel free to modify the code structure, add more parameters, more input variables for the function, etc.
         
         ########### Write your code here ###########
+
+        # Get the current object pose in the robot base_footprint frame
+        current_object_pose = self.get_current_object_pose()
+        
+        # Calculate the distance error
+        distance = np.linalg.norm(current_object_pose)
+        error = self.desired_distance - distance
+        
+        # PID controller
+        self.integral += error
+        derivative = error - self.prev_error
+        control_output = self.kp * error + self.ki * self.integral + self.kd * derivative
+        self.prev_error = error
         
         # TODO: Update the control velocity command
         cmd_vel = Twist()
-        cmd_vel.linear.x = 0
+        cmd_vel.linear.x = control_output
         cmd_vel.linear.y = 0
         cmd_vel.angular.z = 0
         return cmd_vel
